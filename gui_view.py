@@ -168,7 +168,7 @@ class MaterialSelector(QWidget):
 
 
 class OpticsCanvas(QGraphicsView):
-    """Billiard-style ray canvas using QGraphicsScene."""
+    """Optics ray canvas using QGraphicsScene."""
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
