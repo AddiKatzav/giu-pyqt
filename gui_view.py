@@ -55,7 +55,7 @@ class MaterialSelector(QWidget):
         self._button.clicked.connect(self._set_options_visible)
         layout.addWidget(self._button)
 
-    def clear(self) -> None:
+    def clear_materials(self) -> None:
         self._materials.clear()
         if self._options is not None:
             self._options.clear()
@@ -63,12 +63,12 @@ class MaterialSelector(QWidget):
         self._current_text = ""
         self._button.setText("")
 
-    def addItems(self, materials: list[str]) -> None:
+    def set_materials(self, materials: list[str]) -> None:
         self._materials.extend(materials)
         if self._options is not None:
             self._options.addItems(materials)
 
-    def setCurrentText(self, material: str) -> None:
+    def select_material(self, material: str) -> None:
         self._current_text = material
         self._button.setText(material)
         if self._options is None:
@@ -113,7 +113,7 @@ class MaterialSelector(QWidget):
         self._options.addItems(self._materials)
         self._options.hide()
         self._options.itemClicked.connect(self._on_option_clicked)
-        self.setCurrentText(self._current_text)
+        self.select_material(self._current_text)
         return self._options
 
     def _hide_options(self) -> None:
@@ -160,7 +160,7 @@ class MaterialSelector(QWidget):
 
     def _on_option_clicked(self, item: QListWidgetItem) -> None:
         material = item.text()
-        self.setCurrentText(material)
+        self.select_material(material)
         self._hide_options()
         QTimer.singleShot(
             _MATERIAL_COMMIT_DELAY_MS,
@@ -337,9 +337,9 @@ class RefractionMainWindow(QMainWindow):
         selected_material: str,
     ) -> None:
         selector.blockSignals(True)
-        selector.clear()
-        selector.addItems(materials)
-        selector.setCurrentText(selected_material)
+        selector.clear_materials()
+        selector.set_materials(materials)
+        selector.select_material(selected_material)
         selector.blockSignals(False)
 
     def show_render_state(self, state: RenderState) -> None:
