@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import (
     QFrame,
@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QGraphicsView,
     QHBoxLayout,
     QLabel,
+    QApplication,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -42,6 +43,7 @@ class MaterialSelector(QWidget):
         self._materials: list[str] = []
         self._options: Optional[QListWidget] = None
         self._options_parent: Optional[QWidget] = None
+        self._event_filter_installed = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -77,8 +79,8 @@ class MaterialSelector(QWidget):
     def _set_options_visible(self, visible: bool) -> None:
         if visible:
             self._show_options()
-        elif self._options is not None:
-            self._options.hide()
+        else:
+            self._hide_options()
 
     def _show_options(self) -> None:
         options = self._ensure_options()
@@ -90,6 +92,7 @@ class MaterialSelector(QWidget):
         options.raise_()
         options.show()
         options.setFocus(Qt.FocusReason.PopupFocusReason)
+        self._install_event_filter()
 
     def _ensure_options(self) -> QListWidget:
         parent = self.window()
@@ -112,12 +115,45 @@ class MaterialSelector(QWidget):
         self.setCurrentText(self._current_text)
         return self._options
 
-    def _on_option_clicked(self, item: QListWidgetItem) -> None:
-        material = item.text()
-        self.setCurrentText(material)
+    def _hide_options(self) -> None:
         self._button.setChecked(False)
         if self._options is not None:
             self._options.hide()
+        self._remove_event_filter()
+
+    def _install_event_filter(self) -> None:
+        app = QApplication.instance()
+        if app is not None and not self._event_filter_installed:
+            app.installEventFilter(self)
+            self._event_filter_installed = True
+
+    def _remove_event_filter(self) -> None:
+        app = QApplication.instance()
+        if app is not None and self._event_filter_installed:
+            app.removeEventFilter(self)
+            self._event_filter_installed = False
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if self._options is None or not self._options.isVisible():
+            return super().eventFilter(watched, event)
+
+        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
+            self._hide_options()
+            return True
+
+        if event.type() == QEvent.Type.MouseButtonPress:
+            global_pos = event.globalPosition().toPoint()
+            clicked_button = self._button.rect().contains(self._button.mapFromGlobal(global_pos))
+            clicked_options = self._options.rect().contains(self._options.mapFromGlobal(global_pos))
+            if not clicked_button and not clicked_options:
+                self._hide_options()
+
+        return super().eventFilter(watched, event)
+
+    def _on_option_clicked(self, item: QListWidgetItem) -> None:
+        material = item.text()
+        self.setCurrentText(material)
+        self._hide_options()
         QTimer.singleShot(
             _MATERIAL_COMMIT_DELAY_MS,
             lambda: self.material_committed.emit(material),
