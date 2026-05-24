@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import (
     QFrame,
@@ -39,10 +39,12 @@ class MaterialSelector(QWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._current_text = ""
+        self._materials: list[str] = []
+        self._options: Optional[QListWidget] = None
+        self._options_parent: Optional[QWidget] = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
 
         self._button = QPushButton()
         self._button.setObjectName("materialSelector")
@@ -50,39 +52,72 @@ class MaterialSelector(QWidget):
         self._button.clicked.connect(self._set_options_visible)
         layout.addWidget(self._button)
 
-        self._options = QListWidget()
-        self._options.setObjectName("materialOptions")
-        self._options.setEditTriggers(QListWidget.EditTrigger.NoEditTriggers)
-        self._options.setMouseTracking(False)
-        self._options.setUniformItemSizes(True)
-        self._options.setMaximumHeight(150)
-        self._options.hide()
-        self._options.itemClicked.connect(self._on_option_clicked)
-        layout.addWidget(self._options)
-
     def clear(self) -> None:
-        self._options.clear()
+        self._materials.clear()
+        if self._options is not None:
+            self._options.clear()
+            self._options.hide()
         self._current_text = ""
         self._button.setText("")
 
     def addItems(self, materials: list[str]) -> None:
-        self._options.addItems(materials)
+        self._materials.extend(materials)
+        if self._options is not None:
+            self._options.addItems(materials)
 
     def setCurrentText(self, material: str) -> None:
         self._current_text = material
         self._button.setText(material)
+        if self._options is None:
+            return
         matches = self._options.findItems(material, Qt.MatchFlag.MatchExactly)
         if matches:
             self._options.setCurrentItem(matches[0])
 
     def _set_options_visible(self, visible: bool) -> None:
-        self._options.setVisible(visible)
+        if visible:
+            self._show_options()
+        elif self._options is not None:
+            self._options.hide()
+
+    def _show_options(self) -> None:
+        options = self._ensure_options()
+        row_height = options.sizeHintForRow(0) if options.count() else 26
+        list_height = min(150, max(1, options.count()) * max(26, row_height) + 6)
+        parent = self._options_parent or self.window()
+        top_left = self.mapTo(parent, QPoint(0, self.height() + 2))
+        options.setGeometry(top_left.x(), top_left.y(), self.width(), list_height)
+        options.raise_()
+        options.show()
+        options.setFocus(Qt.FocusReason.PopupFocusReason)
+
+    def _ensure_options(self) -> QListWidget:
+        parent = self.window()
+        if self._options is not None and self._options_parent is parent:
+            return self._options
+
+        if self._options is not None:
+            self._options.deleteLater()
+
+        self._options_parent = parent
+        self._options = QListWidget(parent)
+        self._options.setObjectName("materialOptions")
+        self._options.setEditTriggers(QListWidget.EditTrigger.NoEditTriggers)
+        self._options.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self._options.setMouseTracking(False)
+        self._options.setUniformItemSizes(True)
+        self._options.addItems(self._materials)
+        self._options.hide()
+        self._options.itemClicked.connect(self._on_option_clicked)
+        self.setCurrentText(self._current_text)
+        return self._options
 
     def _on_option_clicked(self, item: QListWidgetItem) -> None:
         material = item.text()
         self.setCurrentText(material)
         self._button.setChecked(False)
-        self._options.hide()
+        if self._options is not None:
+            self._options.hide()
         QTimer.singleShot(
             _MATERIAL_COMMIT_DELAY_MS,
             lambda: self.material_committed.emit(material),
