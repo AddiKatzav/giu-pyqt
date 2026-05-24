@@ -141,6 +141,13 @@ class MaterialSelector(QWidget):
             self._hide_options()
             return True
 
+        if watched is self.window() and event.type() in {
+            QEvent.Type.Move,
+            QEvent.Type.Resize,
+        }:
+            self._hide_options()
+            return False
+
         if event.type() == QEvent.Type.MouseButtonPress:
             global_pos = event.globalPosition().toPoint()
             clicked_button = self._button.rect().contains(self._button.mapFromGlobal(global_pos))
