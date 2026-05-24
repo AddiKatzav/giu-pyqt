@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Optional
 
 from PyQt6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, pyqtSignal
@@ -267,12 +268,10 @@ class RefractionMainWindow(QMainWindow):
 
         media_row = QHBoxLayout()
         media_row.addWidget(QLabel("Medium 1 (incident)"))
-        self._medium1 = MaterialSelector()
-        self._medium1.material_committed.connect(self.medium1_changed.emit)
+        self._medium1 = self._build_material_selector(self.medium1_changed.emit)
         media_row.addWidget(self._medium1, stretch=1)
         media_row.addWidget(QLabel("Medium 2 (transmitted)"))
-        self._medium2 = MaterialSelector()
-        self._medium2.material_committed.connect(self.medium2_changed.emit)
+        self._medium2 = self._build_material_selector(self.medium2_changed.emit)
         media_row.addWidget(self._medium2, stretch=1)
         ctrl_layout.addLayout(media_row)
         root.addWidget(controls)
@@ -322,17 +321,26 @@ class RefractionMainWindow(QMainWindow):
         self._angle_value.setText(f"{degrees:.1f}°")
         self.angle_changed.emit(degrees)
 
+    def _build_material_selector(self, on_commit: Callable[[str], None]) -> MaterialSelector:
+        selector = MaterialSelector()
+        selector.material_committed.connect(on_commit)
+        return selector
+
     def set_material_choices(self, materials: list[str]) -> None:
-        self._medium1.blockSignals(True)
-        self._medium2.blockSignals(True)
-        self._medium1.clear()
-        self._medium2.clear()
-        self._medium1.addItems(materials)
-        self._medium2.addItems(materials)
-        self._medium1.setCurrentText("Air")
-        self._medium2.setCurrentText("Glass")
-        self._medium1.blockSignals(False)
-        self._medium2.blockSignals(False)
+        self._set_material_choices(self._medium1, materials, "Air")
+        self._set_material_choices(self._medium2, materials, "Glass")
+
+    def _set_material_choices(
+        self,
+        selector: MaterialSelector,
+        materials: list[str],
+        selected_material: str,
+    ) -> None:
+        selector.blockSignals(True)
+        selector.clear()
+        selector.addItems(materials)
+        selector.setCurrentText(selected_material)
+        selector.blockSignals(False)
 
     def show_render_state(self, state: RenderState) -> None:
         self._canvas.apply_render_state(state)

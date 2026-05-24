@@ -165,12 +165,14 @@ class PhysicsModel:
         self._state.incident_angle_deg = max(0.0, min(90.0, degrees))
 
     def set_medium1(self, material: str) -> None:
-        refractive_index(material)  # validate
-        self._state.medium1 = material
+        self._set_medium("medium1", material)
 
     def set_medium2(self, material: str) -> None:
-        refractive_index(material)
-        self._state.medium2 = material
+        self._set_medium("medium2", material)
+
+    def _set_medium(self, field_name: str, material: str) -> None:
+        refractive_index(material)  # validate
+        setattr(self._state, field_name, material)
 
     def compute(self) -> RefractionResult:
         """Calculate refraction for the current simulation state."""

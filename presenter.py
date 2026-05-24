@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Optional, Protocol, runtime_checkable
 
@@ -73,15 +74,15 @@ class RefractionPresenter:
         self._sync_view()
 
     def on_medium1_changed(self, material: str) -> None:
-        if not material or material not in MATERIALS:
-            return
-        self._model.set_medium1(material)
-        self._sync_view()
+        self._set_medium(material, self._model.set_medium1)
 
     def on_medium2_changed(self, material: str) -> None:
+        self._set_medium(material, self._model.set_medium2)
+
+    def _set_medium(self, material: str, apply_material: Callable[[str], None]) -> None:
         if not material or material not in MATERIALS:
             return
-        self._model.set_medium2(material)
+        apply_material(material)
         self._sync_view()
 
     def _sync_view(self) -> None:
