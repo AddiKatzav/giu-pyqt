@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import (
-    QComboBox,
     QFrame,
     QGraphicsLineItem,
     QGraphicsScene,
@@ -15,7 +14,10 @@ from PyQt6.QtWidgets import (
     QGraphicsView,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMainWindow,
+    QPushButton,
     QSlider,
     QStatusBar,
     QVBoxLayout,
@@ -26,6 +28,65 @@ from presenter import RenderState, RefractionPresenter
 
 _SCENE_W = 800
 _SCENE_H = 560
+_MATERIAL_COMMIT_DELAY_MS = 75
+
+
+class MaterialSelector(QWidget):
+    """In-window material selector that avoids fragile WSL popup windows."""
+
+    material_committed = pyqtSignal(str)
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self._current_text = ""
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self._button = QPushButton()
+        self._button.setObjectName("materialSelector")
+        self._button.setCheckable(True)
+        self._button.clicked.connect(self._set_options_visible)
+        layout.addWidget(self._button)
+
+        self._options = QListWidget()
+        self._options.setObjectName("materialOptions")
+        self._options.setEditTriggers(QListWidget.EditTrigger.NoEditTriggers)
+        self._options.setMouseTracking(False)
+        self._options.setUniformItemSizes(True)
+        self._options.setMaximumHeight(150)
+        self._options.hide()
+        self._options.itemClicked.connect(self._on_option_clicked)
+        layout.addWidget(self._options)
+
+    def clear(self) -> None:
+        self._options.clear()
+        self._current_text = ""
+        self._button.setText("")
+
+    def addItems(self, materials: list[str]) -> None:
+        self._options.addItems(materials)
+
+    def setCurrentText(self, material: str) -> None:
+        self._current_text = material
+        self._button.setText(material)
+        matches = self._options.findItems(material, Qt.MatchFlag.MatchExactly)
+        if matches:
+            self._options.setCurrentItem(matches[0])
+
+    def _set_options_visible(self, visible: bool) -> None:
+        self._options.setVisible(visible)
+
+    def _on_option_clicked(self, item: QListWidgetItem) -> None:
+        material = item.text()
+        self.setCurrentText(material)
+        self._button.setChecked(False)
+        self._options.hide()
+        QTimer.singleShot(
+            _MATERIAL_COMMIT_DELAY_MS,
+            lambda: self.material_committed.emit(material),
+        )
 
 
 class OpticsCanvas(QGraphicsView):
@@ -128,12 +189,12 @@ class RefractionMainWindow(QMainWindow):
 
         media_row = QHBoxLayout()
         media_row.addWidget(QLabel("Medium 1 (incident)"))
-        self._medium1 = QComboBox()
-        self._medium1.currentTextChanged.connect(self.medium1_changed.emit)
+        self._medium1 = MaterialSelector()
+        self._medium1.material_committed.connect(self.medium1_changed.emit)
         media_row.addWidget(self._medium1, stretch=1)
         media_row.addWidget(QLabel("Medium 2 (transmitted)"))
-        self._medium2 = QComboBox()
-        self._medium2.currentTextChanged.connect(self.medium2_changed.emit)
+        self._medium2 = MaterialSelector()
+        self._medium2.material_committed.connect(self.medium2_changed.emit)
         media_row.addWidget(self._medium2, stretch=1)
         ctrl_layout.addLayout(media_row)
         root.addWidget(controls)
@@ -154,11 +215,18 @@ class RefractionMainWindow(QMainWindow):
                 padding: 8px;
             }
             QLabel { color: #b0bec5; font-size: 13px; }
-            QComboBox {
+            QPushButton#materialSelector {
                 background: #252a33; color: #eceff1; border: 1px solid #3d4654;
-                border-radius: 4px; padding: 6px; min-width: 120px;
+                border-radius: 4px; padding: 6px; min-width: 120px; text-align: left;
             }
-            QComboBox:hover { border-color: #4fc3f7; }
+            QPushButton#materialSelector:hover,
+            QPushButton#materialSelector:checked { border-color: #4fc3f7; }
+            QListWidget#materialOptions {
+                background: #252a33; color: #eceff1; border: 1px solid #3d4654;
+                border-radius: 4px; padding: 2px; outline: none;
+            }
+            QListWidget#materialOptions::item { padding: 5px; }
+            QListWidget#materialOptions::item:selected { background: #1565c0; }
             QSlider::groove:horizontal {
                 height: 6px; background: #2c333d; border-radius: 3px;
             }
