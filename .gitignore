@@ -1,0 +1,38 @@
+# Virtual environments
+.pyqt-venv/
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Testing / typing / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE (keep shared interpreter settings)
+.vscode/*
+!.vscode/settings.json
+
+# Environment / secrets
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Accidental pip output (e.g. mistyped "pip install =6.6.0")
+=*

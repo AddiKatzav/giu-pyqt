@@ -1,0 +1,6 @@
+{
+  "venvPath": ".",
+  "venv": ".pyqt-venv",
+  "pythonVersion": "3.12",
+  "reportMissingModuleSource": false
+}

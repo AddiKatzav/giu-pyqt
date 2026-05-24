@@ -1,0 +1,5 @@
+[MAIN]
+extension-pkg-whitelist = PyQt6
+
+[MESSAGES CONTROL]
+disable = no-name-in-module

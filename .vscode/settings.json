@@ -1,0 +1,13 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.pyqt-venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/.pyqt-venv/lib/python3.12/site-packages"
+  ],
+  "python.linting.pylintEnabled": false,
+  "cursorpyright.analysis.diagnosticMode": "workspace",
+  "cursorpyright.analysis.extraPaths": [
+    "${workspaceFolder}/.pyqt-venv/lib/python3.12/site-packages"
+  ]
+}
