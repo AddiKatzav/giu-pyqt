@@ -40,15 +40,21 @@ class ViewSignal(Protocol):
     """Minimal signal interface used by the presenter."""
 
     def connect(self, handler: Callable[..., None]) -> object: ...
+    def emit(self, *args: object) -> None: ...
 
 
 @runtime_checkable
 class IRefractionView(Protocol):
     """View contract: emit inputs, accept render commands."""
 
-    angle_changed: ViewSignal
-    medium1_changed: ViewSignal
-    medium2_changed: ViewSignal
+    @property
+    def angle_changed(self) -> ViewSignal: ...
+
+    @property
+    def medium1_changed(self) -> ViewSignal: ...
+
+    @property
+    def medium2_changed(self) -> ViewSignal: ...
 
     def set_material_choices(self, materials: list[str]) -> None: ...
     def show_render_state(self, state: RenderState) -> None: ...

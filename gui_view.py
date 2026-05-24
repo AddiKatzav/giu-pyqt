@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Optional
+from typing import Optional, cast
 
 from PyQt6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPen
+from PyQt6.QtGui import QColor, QFont, QKeyEvent, QMouseEvent, QPainter, QPen
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsLineItem,
@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from presenter import RenderState, RefractionPresenter
+from presenter import RenderState, RefractionPresenter, ViewSignal
 
 _SCENE_W = 800
 _SCENE_H = 560
@@ -135,10 +135,19 @@ class MaterialSelector(QWidget):
             self._event_filter_installed = False
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """Qt event-filter override; delegates to the snake_case handler."""
+        return self._event_filter(watched, event)
+
+    def _event_filter(self, watched: QObject, event: QEvent) -> bool:
+        """Close the material options list on outside clicks or geometry changes."""
         if self._options is None or not self._options.isVisible():
             return super().eventFilter(watched, event)
 
-        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
+        if (
+            isinstance(event, QKeyEvent)
+            and event.type() == QEvent.Type.KeyPress
+            and event.key() == Qt.Key.Key_Escape
+        ):
             self._hide_options()
             return True
 
@@ -149,10 +158,14 @@ class MaterialSelector(QWidget):
             self._hide_options()
             return False
 
-        if event.type() == QEvent.Type.MouseButtonPress:
+        if isinstance(event, QMouseEvent) and event.type() == QEvent.Type.MouseButtonPress:
             global_pos = event.globalPosition().toPoint()
-            clicked_button = self._button.rect().contains(self._button.mapFromGlobal(global_pos))
-            clicked_options = self._options.rect().contains(self._options.mapFromGlobal(global_pos))
+            clicked_button = self._button.rect().contains(
+                self._button.mapFromGlobal(global_pos)
+            )
+            clicked_options = self._options.rect().contains(
+                self._options.mapFromGlobal(global_pos)
+            )
             if not clicked_button and not clicked_options:
                 self._hide_options()
 
@@ -204,32 +217,45 @@ class OpticsCanvas(QGraphicsView):
             if ray.dashed:
                 pen.setStyle(Qt.PenStyle.DashLine)
             line = self._scene.addLine(ray.x1, ray.y1, ray.x2, ray.y2, pen)
-            self._ray_items.append(line)
+            if line is not None:
+                self._ray_items.append(line)
 
         font = QFont("Segoe UI", 10)
         for i, text in enumerate(state.labels):
-            label = self._scene.addSimpleText(text, font)
+            label = self._add_simple_text(text, font)
             label.setBrush(QColor("#cfd8dc"))
             label.setPos(90, 48 + i * 22)
             self._label_items.append(label)
 
-        m1 = self._scene.addSimpleText(state.medium1_label, QFont("Segoe UI", 11, QFont.Weight.Bold))
+        m1 = self._add_simple_text(
+            state.medium1_label,
+            QFont("Segoe UI", 11, QFont.Weight.Bold),
+        )
         m1.setBrush(QColor("#4fc3f7"))
         m1.setPos(620, 120)
         self._label_items.append(m1)
 
-        m2 = self._scene.addSimpleText(state.medium2_label, QFont("Segoe UI", 11, QFont.Weight.Bold))
+        m2 = self._add_simple_text(
+            state.medium2_label,
+            QFont("Segoe UI", 11, QFont.Weight.Bold),
+        )
         m2.setBrush(QColor("#81c784" if not state.tir_active else "#ff7043"))
         m2.setPos(620, 360)
         self._label_items.append(m2)
+
+    def _add_simple_text(self, text: str, font: QFont) -> QGraphicsSimpleTextItem:
+        """Add text to the scene and narrow PyQt's optional stub return type."""
+        item = self._scene.addSimpleText(text, font)
+        assert item is not None
+        return item
 
 
 class RefractionMainWindow(QMainWindow):
     """Passive view: emits signals, renders presenter commands."""
 
-    angle_changed = pyqtSignal(float)
-    medium1_changed = pyqtSignal(str)
-    medium2_changed = pyqtSignal(str)
+    angle_changed = cast(ViewSignal, pyqtSignal(float))
+    medium1_changed = cast(ViewSignal, pyqtSignal(str))
+    medium2_changed = cast(ViewSignal, pyqtSignal(str))
 
     def __init__(self, presenter: RefractionPresenter) -> None:
         super().__init__()
@@ -346,4 +372,9 @@ class RefractionMainWindow(QMainWindow):
         self._canvas.apply_render_state(state)
 
     def show_status_message(self, message: str) -> None:
-        self.statusBar().showMessage(message)
+        self._status_bar().showMessage(message)
+
+    def _status_bar(self) -> QStatusBar:
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        return status_bar
